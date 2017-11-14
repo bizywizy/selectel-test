@@ -2,7 +2,7 @@ from datetime import datetime
 
 from psycopg2.extras import NamedTupleCursor
 
-from db import get_db
+from app import get_db
 
 
 class Ticket:

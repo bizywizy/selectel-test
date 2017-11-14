@@ -1,8 +1,8 @@
 from collections import namedtuple
 
 from flask import request, Response, jsonify
+from flask.views import MethodView
 
-from main import app
 from models import TicketRepository
 
 ticket_status_path = {
@@ -13,31 +13,21 @@ ticket_status_path = {
 }
 
 
-@app.route('/')
-def hello_world():
-    return 'Hello World!'
+class TicketView(MethodView):
+    def get(self, ticket_id):
+        ticket = TicketRepository.get_ticket(ticket_id)
+        if not ticket:
+            return Response(status=404)
+        return jsonify(ticket._asdict())
 
-
-@app.route('/tickets', methods=('GET', 'POST'))
-def tickets():
-    if request.method == 'GET':
-        return 'tickets'
-    if request.method == 'POST':
+    def post(self):
         data = request.json
         Ticket = namedtuple('Ticket', ('subject', 'text', 'email'))
         ticket = Ticket(data.get('subject'), data.get('text'), data.get('email'))
         TicketRepository.create(ticket)
         return Response(status=200)
 
-
-@app.route('/tickets/<int:ticket_id>', methods=('GET', 'PUT'))
-def ticket(ticket_id):
-    if request.method == 'GET':
-        ticket = TicketRepository.get_ticket(ticket_id)
-        if not ticket:
-            return Response(status=404)
-        return jsonify(ticket._asdict())
-    if request.method == 'PUT':
+    def put(self, ticket_id):
         new_status = request.json.get('status')
         ticket = TicketRepository.get_ticket(ticket_id)
         if not ticket:
@@ -48,9 +38,8 @@ def ticket(ticket_id):
         return Response(status=200)
 
 
-@app.route('/tickets/<int:ticket_id>/comments')
-def ticket_comments(ticket_id):
-    if request.method == 'POST':
+class CommentView(MethodView):
+    def post(self, ticket_id):
         data = request.json
         ticket = TicketRepository.get_ticket(ticket_id)
         if not ticket:
@@ -58,6 +47,3 @@ def ticket_comments(ticket_id):
         Comment = namedtuple('Comment', ('email', 'text'))
         comment = Comment(data.get('email'), data.get('text'))
         TicketRepository.add_comment(ticket_id, comment)
-
-if __name__ == '__main__':
-    app.run()
