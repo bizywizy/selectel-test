@@ -1,16 +1,15 @@
 from collections import namedtuple
 from datetime import datetime
 
-from psycopg2.extras import NamedTupleCursor
-
 from app import get_db, get_cache, ticket_status_path, CLOSED
 from utils import build_ticket_name
 
 Ticket = namedtuple('Ticket', ('subject', 'text', 'email'))
 Comment = namedtuple('Comment', ('email', 'text'))
+_ = namedtuple('_', ('id', 'subject', 'text', 'email', 'status', 'updated_at', 'created_at'))
 
 
-class WrongStatusException(Exception):
+class WrongStatusException(BaseException):
     pass
 
 
@@ -33,6 +32,8 @@ class TicketRepository:
         conn = get_db()
         cur = conn.cursor()
         cur.execute(q, (new_status, updated_at, ticket.id))
+        cache = get_cache()
+        cache.delete(build_ticket_name(ticket.id))
         conn.commit()
 
     @staticmethod
@@ -44,6 +45,8 @@ class TicketRepository:
         cur = conn.cursor()
         cur.execute('UPDATE ticket SET updated_at = %s WHERE id = %s', (updated_at,))
         cur.execute('INSERT INTO comment(ticket_id, email, text) VALUES (%s, %s, %s)', (ticket.id, *comment))
+        cache = get_cache()
+        cache.delete(build_ticket_name(ticket.id))
         conn.commit()
 
     @staticmethod
@@ -53,10 +56,12 @@ class TicketRepository:
         if cache.has(ticket_name):
             return cache.get(ticket_name)
         conn = get_db()
-        cur = conn.cursor(cursor_factory=NamedTupleCursor)
+        cur = conn.cursor()
         q = 'SELECT id, subject, text, email, status, updated_at, created_at FROM ticket WHERE id = %s;'
         cur.execute(q, (ticket_id,))
         ticket = cur.fetchone()
-        if ticket:
-            cache.set(ticket_name, ticket)
+        if not ticket:
+            return
+        ticket = _(*ticket)
+        cache.set(ticket_name, ticket)
         return ticket

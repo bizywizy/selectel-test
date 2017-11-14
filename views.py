@@ -15,10 +15,10 @@ class TicketView(MethodView):
 
     def post(self):
         data = request.json
-        ticket = Ticket(data.get('subject'), data.get('text'), data.get('email'))
         try:
+            ticket = Ticket(**data)
             TicketRepository.create(ticket)
-        except WrongStatusException:
+        except (TypeError, WrongStatusException):
             return Response(status=400)
         return Response(status=200)
 
@@ -27,7 +27,7 @@ class TicketView(MethodView):
         ticket = TicketRepository.get_ticket(ticket_id)
         if not ticket:
             return Response(status=404)
-        TicketRepository.change_status(ticket_id, new_status)
+        TicketRepository.change_status(ticket, new_status)
         return Response(status=200)
 
 
