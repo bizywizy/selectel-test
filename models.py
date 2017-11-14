@@ -1,51 +1,62 @@
+from collections import namedtuple
 from datetime import datetime
 
 from psycopg2.extras import NamedTupleCursor
 
-from app import get_db
+from app import get_db, get_cache, ticket_status_path, CLOSED
+from utils import build_ticket_name
+
+Ticket = namedtuple('Ticket', ('subject', 'text', 'email'))
+Comment = namedtuple('Comment', ('email', 'text'))
 
 
-class Ticket:
-    created_at = None
-    updated_at = None
-    subject = None
-    text = None
-    email = None
-    status = None
+class WrongStatusException(Exception):
+    pass
 
 
 class TicketRepository:
     @staticmethod
     def create(ticket):
         updated_at = datetime.now()
-        q = 'INSERT INTO ticket (subject, text, email, status, updated_at) VALUES (%S, %S, %S, %S, %S);'
+        q = 'INSERT INTO ticket (subject, text, email, status, updated_at) VALUES (%s, %s, %s, %s, %s);'
         conn = get_db()
         cur = conn.cursor()
         cur.execute(q, (*ticket, 'open', updated_at))
         conn.commit()
 
     @staticmethod
-    def change_status(ticket_id, status):
+    def change_status(ticket, new_status):
+        if new_status not in ticket_status_path.get(ticket.status, []):
+            raise WrongStatusException()
         updated_at = datetime.now()
-        q = 'UPDATE ticket SET status = %S, updated_at = %S WHERE id = %S;'
+        q = 'UPDATE ticket SET status = %s, updated_at = %s WHERE id = %s;'
         conn = get_db()
         cur = conn.cursor()
-        cur.execute(q, (status, updated_at, ticket_id))
+        cur.execute(q, (new_status, updated_at, ticket.id))
         conn.commit()
 
     @staticmethod
-    def add_comment(ticket_id, comment):
+    def add_comment(ticket, comment):
+        if ticket.status == CLOSED:
+            raise WrongStatusException()
         updated_at = datetime.now()
         conn = get_db()
         cur = conn.cursor()
         cur.execute('UPDATE ticket SET updated_at = %s WHERE id = %s', (updated_at,))
-        cur.execute('insert into comment(ticket_id, email, text) VALUES (%s, %s, %s)', (ticket_id, *comment))
+        cur.execute('INSERT INTO comment(ticket_id, email, text) VALUES (%s, %s, %s)', (ticket.id, *comment))
         conn.commit()
 
     @staticmethod
     def get_ticket(ticket_id):
+        ticket_name = build_ticket_name(ticket_id)
+        cache = get_cache()
+        if cache.has(ticket_name):
+            return cache.get(ticket_name)
         conn = get_db()
         cur = conn.cursor(cursor_factory=NamedTupleCursor)
         q = 'SELECT id, subject, text, email, status, updated_at, created_at FROM ticket WHERE id = %s;'
         cur.execute(q, (ticket_id,))
-        return cur.fetchone()
+        ticket = cur.fetchone()
+        if ticket:
+            cache.set(ticket_name, ticket)
+        return ticket
