@@ -20,7 +20,7 @@ class TicketRepository:
         q = 'INSERT INTO ticket (subject, text, email, status, updated_at) VALUES (%s, %s, %s, %s, %s);'
         conn = get_db()
         cur = conn.cursor()
-        cur.execute(q, (*ticket, 'open', updated_at))
+        cur.execute(q, tuple(ticket) + ('open', updated_at))
         conn.commit()
 
     @staticmethod
@@ -43,8 +43,8 @@ class TicketRepository:
         updated_at = datetime.now()
         conn = get_db()
         cur = conn.cursor()
-        cur.execute('UPDATE ticket SET updated_at = %s WHERE id = %s', (updated_at,))
-        cur.execute('INSERT INTO comment(ticket_id, email, text) VALUES (%s, %s, %s)', (ticket.id, *comment))
+        cur.execute('UPDATE ticket SET updated_at = %s WHERE id = %s', (updated_at, ticket.id))
+        cur.execute('INSERT INTO comment(ticket_id, email, text) VALUES (%s, %s, %s)', (ticket.id,) + tuple(comment))
         cache = get_cache()
         cache.delete(build_ticket_name(ticket.id))
         conn.commit()

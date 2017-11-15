@@ -31,7 +31,7 @@ statement = '''
     );
     COMMIT;
 '''
-cur.execute(statement, (*ticket_status_path,))
+cur.execute(statement, ticket_status_path.keys())
 conn.commit()
 cur.close()
 conn.close()

@@ -3,7 +3,7 @@ from collections import namedtuple
 from flask import request, Response, jsonify
 from flask.views import MethodView
 
-from models import TicketRepository, WrongStatusException, Ticket
+from models import TicketRepository, WrongStatusException, Ticket, Comment
 
 
 class TicketView(MethodView):
@@ -18,7 +18,7 @@ class TicketView(MethodView):
         try:
             ticket = Ticket(**data)
             TicketRepository.create(ticket)
-        except (TypeError, WrongStatusException):
+        except TypeError:
             return Response(status=400)
         return Response(status=200)
 
@@ -27,7 +27,10 @@ class TicketView(MethodView):
         ticket = TicketRepository.get_ticket(ticket_id)
         if not ticket:
             return Response(status=404)
-        TicketRepository.change_status(ticket, new_status)
+        try:
+            TicketRepository.change_status(ticket, new_status)
+        except WrongStatusException:
+            return Response(status=400)
         return Response(status=200)
 
 
@@ -37,7 +40,9 @@ class CommentView(MethodView):
         ticket = TicketRepository.get_ticket(ticket_id)
         if not ticket:
             return Response(status=404)
-        Comment = namedtuple('Comment', ('email', 'text'))
         comment = Comment(data.get('email'), data.get('text'))
-        TicketRepository.add_comment(ticket_id, comment)
+        try:
+            TicketRepository.add_comment(ticket, comment)
+        except WrongStatusException:
+            return Response(status=400)
         return Response(status=200)

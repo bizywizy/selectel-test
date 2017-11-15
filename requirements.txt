@@ -1,0 +1,4 @@
+uwsgi==2.0.15
+pylibmc==1.5.2
+psycopg2==2.7.3.2
+flask==0.12.2
