@@ -1,3 +1,5 @@
+import os
+
 import psycopg2
 from flask import g
 
@@ -19,16 +21,19 @@ ticket_status_path = {
     CLOSED: []
 }
 
+POSTGRES_URL = os.getenv('POSTGRES_URL')
+MEMCACHED_URL = os.getenv('MEMCACHED_URL')
+
 
 def get_db():
     if not hasattr(g, 'conn'):
-        g.conn = psycopg2.connect('dbname=selectel_test user=selectel_user password=qwerty host=localhost')
+        g.conn = psycopg2.connect(POSTGRES_URL)
     return g.conn
 
 
 def get_cache():
     if not hasattr(g, 'cache'):
-        g.cache = MemcachedCache(['127.0.0.1:11211'])
+        g.cache = MemcachedCache([MEMCACHED_URL])
     return g.cache
 
 

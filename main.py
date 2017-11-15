@@ -1,3 +1,4 @@
+from init_db import init_db
 from views import TicketView, CommentView
 from app import app
 
@@ -8,4 +9,5 @@ app.add_url_rule('/tickets/<int:ticket_id>/comments', view_func=CommentView.as_v
                  methods=['POST'])
 
 if __name__ == '__main__':
+    init_db()
     app.run()
